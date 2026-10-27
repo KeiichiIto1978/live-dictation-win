@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using LiveDictation.Diagnostics;
@@ -74,6 +76,25 @@ public sealed class AppSettings
 
     [JsonIgnore]
     public string DefaultOfflineModelRoot => Path.Combine(AppDataRoot, "models-offline");
+
+    /// <summary>
+    /// モデルを探す場所。前から順に見る。
+    /// 実行ファイルの近くも見るのは、リポジトリの models/ に置いたまま使えるようにするため。
+    /// </summary>
+    [JsonIgnore]
+    public IEnumerable<string> ModelSearchRoots
+    {
+        get
+        {
+            yield return DefaultOfflineModelRoot;
+
+            var directory = new DirectoryInfo(AppContext.BaseDirectory);
+            for (var depth = 0; depth < 6 && directory is not null; depth++, directory = directory.Parent)
+            {
+                yield return Path.Combine(directory.FullName, "models");
+            }
+        }
+    }
 
     /// <summary>造語・製品名を直すための置換辞書。</summary>
     [JsonIgnore]

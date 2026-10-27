@@ -15,7 +15,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Repository = 'csukuangfj/sherpa-onnx-nemo-parakeet-tdt_ctc-0.6b-ja-35000-int8',
+    [string]$Repository = 'csukuangfj2/sherpa-onnx-moonshine-base-ja-quantized-2026-02-27',
     [switch]$Force
 )
 
@@ -72,8 +72,9 @@ catch {
 }
 
 # 認識に必要なのはモデル本体と語彙だけ。テスト音声などは落とさない。
+# モデル本体は .onnx と .ort の両方がありうる（Moonshine 系は .ort）
 $wanted = $entries | Where-Object {
-    $_.type -eq 'file' -and ($_.path -like '*.onnx' -or $_.path -eq 'tokens.txt')
+    $_.type -eq 'file' -and ($_.path -like '*.onnx' -or $_.path -like '*.ort' -or $_.path -eq 'tokens.txt')
 }
 
 if (-not $wanted) {
@@ -81,10 +82,10 @@ if (-not $wanted) {
 }
 
 # 量子化済みがあるときは int8 側だけを使う。
-$onnx = $wanted | Where-Object { $_.path -like '*.onnx' }
-$int8 = $onnx | Where-Object { $_.path -like '*.int8.onnx' }
+$models = $wanted | Where-Object { $_.path -notlike 'tokens.txt' }
+$int8 = $models | Where-Object { $_.path -like '*.int8.*' }
 $selected = @()
-$selected += if ($int8) { $int8 } else { $onnx }
+$selected += if ($int8) { $int8 } else { $models }
 $selected += $wanted | Where-Object { $_.path -eq 'tokens.txt' }
 
 foreach ($entry in $selected) {

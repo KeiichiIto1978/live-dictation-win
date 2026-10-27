@@ -21,7 +21,7 @@ public static class ReplacementsTemplate
 # 書き換えは次回の録音開始時から有効になります。
 #
 # 例:
-# 仕分けたー => Shiwaketter
+# re:シュ?ワケッタ[ーあ]? => シワケッター
 # re:ポカ ?ミル => ポカミル
 #
 # 取りこぼしを減らす設定にしている都合で、不明瞭な音に対して

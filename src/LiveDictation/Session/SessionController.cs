@@ -132,7 +132,9 @@ public sealed class SessionController : IDisposable
             var directory = Settings.OfflineModelDirectory;
             if (string.IsNullOrWhiteSpace(directory))
             {
-                directory = Recognition.OfflineModelLocator.FindDefault(Settings.DefaultOfflineModelRoot) ?? string.Empty;
+                directory = Settings.ModelSearchRoots
+                    .Select(Recognition.OfflineModelLocator.FindDefault)
+                    .FirstOrDefault(found => found is not null) ?? string.Empty;
             }
 
             return string.IsNullOrWhiteSpace(directory) ? null : System.IO.Path.GetFileName(directory);

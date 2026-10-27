@@ -33,22 +33,28 @@ public static class FinalPass
         var directory = settings.OfflineModelDirectory;
         if (string.IsNullOrWhiteSpace(directory))
         {
-            directory = OfflineModelLocator.FindDefault(settings.DefaultOfflineModelRoot) ?? string.Empty;
+            directory = settings.ModelSearchRoots
+                .Select(OfflineModelLocator.FindDefault)
+                .FirstOrDefault(found => found is not null) ?? string.Empty;
         }
 
         if (string.IsNullOrWhiteSpace(directory))
         {
-            reason = "仕上げパス用のモデルが見つかりません。scripts フォルダの download-offline-model.ps1 を実行してください。";
+            reason = "文字起こし用のモデルが見つかりません。scripts フォルダの download-offline-model.ps1 を実行してください。";
             return false;
         }
 
-        vadPath = string.IsNullOrWhiteSpace(settings.VadModelPath)
-            ? Path.Combine(settings.DefaultOfflineModelRoot, "silero_vad.onnx")
-            : settings.VadModelPath;
-
-        if (!File.Exists(vadPath))
+        vadPath = settings.VadModelPath;
+        if (string.IsNullOrWhiteSpace(vadPath))
         {
-            reason = $"VAD モデルが見つかりません: {vadPath}";
+            vadPath = settings.ModelSearchRoots
+                .Select(root => Path.Combine(root, "silero_vad.onnx"))
+                .FirstOrDefault(File.Exists) ?? string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(vadPath) || !File.Exists(vadPath))
+        {
+            reason = "VAD モデルが見つかりません。scripts フォルダの download-offline-model.ps1 を実行してください。";
             return false;
         }
 
@@ -222,7 +228,7 @@ public static class FinalPass
         builder.AppendLine($"# 文字起こし {Path.GetFileName(audioPath)}");
         builder.AppendLine();
         builder.AppendLine($"- 作成: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        builder.AppendLine($"- モデル: {Path.GetFileName(model!.Directory)}");
+        builder.AppendLine($"- モデル: {model!.Name} ({model.Kind})");
         builder.AppendLine();
         builder.AppendLine("## 発言ログ");
         builder.AppendLine();
@@ -253,7 +259,7 @@ public static class FinalPass
         builder.AppendLine($"# 文字起こし {Path.GetFileName(sessionDirectory)}");
         builder.AppendLine();
         builder.AppendLine($"- 仕上げパス: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        builder.AppendLine($"- モデル: {Path.GetFileName(model.Directory)}");
+        builder.AppendLine($"- モデル: {model.Name} ({model.Kind})");
         builder.AppendLine($"- 音声 {audioSeconds:0} 秒 / 処理 {elapsed.TotalSeconds:0} 秒");
         builder.AppendLine();
         builder.AppendLine("## 発言ログ");

@@ -30,6 +30,53 @@ public sealed class OfflineTranscriber : IDisposable
         _settings = settings;
         _replacer = TextReplacer.Load(AppSettings.ReplacementsPath);
 
+        var modelConfig = new OfflineModelConfig
+        {
+            Tokens = model.Tokens,
+            NumThreads = Math.Max(1, settings.OfflineNumThreads),
+            Provider = settings.Provider,
+            Debug = 0,
+        };
+
+        // 種別ごとに設定する場所が違う。入れる場所を間違えると初期化に失敗する。
+        switch (model.Kind)
+        {
+            case OfflineModelKind.Transducer:
+                modelConfig.Transducer = new OfflineTransducerModelConfig
+                {
+                    Encoder = model.Encoder,
+                    Decoder = model.Decoder,
+                    Joiner = model.Joiner,
+                };
+                modelConfig.ModelType = "";
+                break;
+
+            case OfflineModelKind.SenseVoice:
+                modelConfig.SenseVoice = new OfflineSenseVoiceModelConfig
+                {
+                    Model = model.Model,
+                    Language = "ja",
+                    // 数字や記号を読みやすい表記に直す。議事録として扱うため有効にする。
+                    UseInverseTextNormalization = 1,
+                };
+                modelConfig.ModelType = "";
+                break;
+
+            case OfflineModelKind.Moonshine:
+                modelConfig.Moonshine = new OfflineMoonshineModelConfig
+                {
+                    Encoder = model.Encoder,
+                    MergedDecoder = model.Decoder,
+                };
+                modelConfig.ModelType = "";
+                break;
+
+            default:
+                modelConfig.NeMoCtc = new OfflineNemoEncDecCtcModelConfig { Model = model.Model };
+                modelConfig.ModelType = "nemo_ctc";
+                break;
+        }
+
         var config = new OfflineRecognizerConfig
         {
             FeatConfig = new FeatureConfig
@@ -37,15 +84,7 @@ public sealed class OfflineTranscriber : IDisposable
                 SampleRate = SourceCapture.TargetSampleRate,
                 FeatureDim = 80,
             },
-            ModelConfig = new OfflineModelConfig
-            {
-                NeMoCtc = new OfflineNemoEncDecCtcModelConfig { Model = model.Model },
-                Tokens = model.Tokens,
-                ModelType = model.ModelType,
-                NumThreads = Math.Max(1, settings.OfflineNumThreads),
-                Provider = settings.Provider,
-                Debug = 0,
-            },
+            ModelConfig = modelConfig,
             DecodingMethod = "greedy_search",
         };
 

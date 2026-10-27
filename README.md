@@ -42,7 +42,7 @@ Zoom や Google Meet を開くと自動で録音を始め、会議が終わる�
 
 - Windows 10 / 11（x64）
 - .NET 8 デスクトップランタイム
-- 初回のみモデルのダウンロードに約 656MB
+- 初回のみモデルのダウンロードに約 136MB
 
 GPU は不要です。CPU のみで動作します。
 
@@ -50,7 +50,7 @@ GPU は不要です。CPU のみで動作します。
 
 ### 1. モデルを取得する
 
-PowerShell で実行してください（約 656MB、数分かかります）。
+PowerShell で実行してください（約 136MB）。
 
 ```
 powershell -ExecutionPolicy RemoteSigned -File scripts\download-offline-model.ps1
@@ -219,7 +219,7 @@ LiveDictation.exe --finalize "C:\path\to\recording.m4a"
 |---|---|
 | 音声取り込み | WASAPI（NAudio）。再生音はループバック、マイクは通常キャプチャ |
 | 発話の切り出し | [silero VAD](https://github.com/snakers4/silero-vad) |
-| 音声認識 | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) + `nemo-parakeet-tdt_ctc-0.6b-ja`（日本語専用） |
+| 音声認識 | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) + `moonshine-base-ja`（日本語専用） |
 | UI | WPF + タスクトレイ常駐 |
 
 ### 設計上の判断
@@ -235,6 +235,26 @@ LiveDictation.exe --finalize "C:\path\to\recording.m4a"
 計測したところ、**認識の処理時間は音声の長さの約 6%** でした。リアルタイムに縛られる必然性がないため、**録音中は音量インジケーターで取り込みを確認し、文字起こしは停止後に通しで行う** 構成に変更しています。
 
 結果として、ストリーミング用の 324MB のモデルが不要になり、設定項目も 20 個以上から 13 個に減りました。
+
+### モデルの選定
+
+日本語の音声で、正解テキストとの **文字誤り率（CER）** を実測して選びました。
+比較に使った条件は同一（同じ音声、同じ VAD、置換辞書は無効）です。
+
+| モデル | サイズ | 文字誤り率 | 処理時間 |
+|---|---|---|---|
+| **moonshine-base-ja** | **135MB** | **25.2%** | 3.6 秒 |
+| nemo-parakeet-tdt_ctc-0.6b-ja | 625MB | 34.2% | 3.4 秒 |
+| reazonspeech-zipformer-ja | 170MB | 74.8% | 4.5 秒 |
+| sense-voice-int8-2025-09-09 | 227MB | 76.6% | 2.2 秒 |
+
+Moonshine が **最も正確で、かつ最も小さい** という結果でした。
+下位 2 つは構成を見直して再測定しても変わらず、日本語の出力自体が崩れていました
+（SenseVoice は簡体字で出力され、ReazonSpeech は大半を取りこぼしました）。
+
+比較は 22 秒の音声 1 本によるものです。別のモデルを試す場合は、
+`scripts\download-offline-model.ps1 -Repository <リポジトリ>` で差し替えられます。
+**最後に入れたモデルが使われます。**
 
 ### 無音時の扱い
 
