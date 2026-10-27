@@ -1,0 +1,113 @@
+<Window x:Class="LiveDictation.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="文字起こしちゃん for Windows"
+        Height="420" Width="720"
+        MinHeight="380" MinWidth="560"
+        FontFamily="Yu Gothic UI" FontSize="13"
+        Background="White">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 状態と操作 -->
+        <Border Grid.Row="0" Background="{StaticResource PanelBrush}" CornerRadius="8" Padding="14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="StatusText" FontSize="18" FontWeight="SemiBold" Text="待機中" />
+                    <TextBlock x:Name="DetailText" Margin="0,4,0,0"
+                               Foreground="{StaticResource MutedBrush}"
+                               TextWrapping="Wrap"
+                               Text="会議アプリを検知すると自動で録音を始めます。" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="ToggleButton" Content="録音を開始" Width="120" Height="36"
+                            Click="OnToggleClick" />
+                    <Button Content="保存フォルダ" Width="110" Height="36" Margin="8,0,0,0"
+                            Click="OnOpenFolderClick" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 入力レベル -->
+        <Border Grid.Row="1" Margin="0,12,0,0" BorderBrush="#FFE2E5EA" BorderThickness="1"
+                CornerRadius="8" Padding="14">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="64" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="入力レベル"
+                           Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,8" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="自分" VerticalAlignment="Center" />
+                <ProgressBar Grid.Row="1" Grid.Column="1" x:Name="MicrophoneMeter"
+                             Height="14" Minimum="0" Maximum="100"
+                             Foreground="{StaticResource AccentBrush}" />
+                <TextBlock Grid.Row="1" Grid.Column="2" x:Name="MicrophoneState" Margin="10,0,0,0"
+                           VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="相手" VerticalAlignment="Center" Margin="0,10,0,0" />
+                <ProgressBar Grid.Row="2" Grid.Column="1" x:Name="SystemMeter" Margin="0,10,0,0"
+                             Height="14" Minimum="0" Maximum="100"
+                             Foreground="{StaticResource AccentBrush}" />
+                <TextBlock Grid.Row="2" Grid.Column="2" x:Name="SystemState" Margin="10,10,0,0"
+                           VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+            </Grid>
+        </Border>
+
+        <!-- 案内と結果 -->
+        <Border Grid.Row="2" Margin="0,12,0,0" BorderBrush="#FFE2E5EA" BorderThickness="1"
+                CornerRadius="8" Padding="14">
+            <StackPanel>
+                <TextBlock Text="文字起こし" Foreground="{StaticResource MutedBrush}" FontSize="11" />
+                <TextBlock x:Name="TranscriptGuide" Margin="0,8,0,0" TextWrapping="Wrap"
+                           Text="録音を停止すると、日本語モデルで文字起こしして transcript.md に書き出します。" />
+                <StackPanel x:Name="FinalPassPanel" Margin="0,12,0,0" Visibility="Collapsed">
+                    <ProgressBar x:Name="FinalPassBar" Height="16" Minimum="0" Maximum="100"
+                                 Foreground="{StaticResource AccentBrush}" />
+                    <TextBlock x:Name="FinalPassText" Margin="0,6,0,0"
+                               Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <TextBlock x:Name="LastTranscriptText" Margin="0,10,0,0" TextWrapping="Wrap"
+                           Foreground="{StaticResource MutedBrush}" />
+                <Button x:Name="OpenTranscriptButton" Content="transcript.md を開く" Margin="0,12,0,0"
+                        HorizontalAlignment="Left" Padding="14,6" IsEnabled="False"
+                        Click="OnOpenTranscriptClick" />
+            </StackPanel>
+        </Border>
+
+        <!-- 設定 -->
+        <Grid Grid.Row="3" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <CheckBox Grid.Column="0" x:Name="AutoRecordCheck" VerticalAlignment="Center"
+                      Content="会議を検知したら自動で録音する" Click="OnAutoRecordClick" />
+
+            <TextBlock Grid.Column="1" x:Name="ModelText" Margin="16,0,0,0" VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{StaticResource MutedBrush}" />
+        </Grid>
+    </Grid>
+</Window>

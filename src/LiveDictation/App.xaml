@@ -1,0 +1,10 @@
+<Application x:Class="LiveDictation.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <SolidColorBrush x:Key="PanelBrush" Color="#FFF4F5F7" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF2F6FEB" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#FF6B7280" />
+    </Application.Resources>
+</Application>

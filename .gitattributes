@@ -1,0 +1,7 @@
+# Windows 専用プロジェクトのため CRLF に統一する
+* text=auto eol=crlf
+
+# バイナリ
+*.onnx binary
+*.wav  binary
+*.ico  binary
