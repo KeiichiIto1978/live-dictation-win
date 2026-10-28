@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
+using LiveDictation.Diagnostics;
 using LiveDictation.Session;
 
 namespace LiveDictation;
@@ -125,6 +126,8 @@ public partial class MainWindow : Window
                 "録音を停止すると、日本語モデルで文字起こしして transcript.md に書き出します。";
         }
 
+        SessionRootText.Text = _controller.Settings.ResolvedSessionRoot;
+
         UpdateLastTranscript();
     }
 
@@ -190,5 +193,78 @@ public partial class MainWindow : Window
     {
         _controller.Settings.AutoRecordEnabled = AutoRecordCheck.IsChecked == true;
         _controller.Settings.Save();
+    }
+
+    private void OnChangeSessionRootClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "録音と文字起こしの保存先を選ぶ",
+            InitialDirectory = _controller.Settings.ResolvedSessionRoot,
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        var chosen = dialog.FolderName;
+
+        // 書けない場所を設定すると、次の会議の録音を丸ごと失う。
+        // 設定を受け入れる前に、実際に書けるかどうかを確かめる。
+        if (!TryVerifyWritable(chosen, out var reason))
+        {
+            System.Windows.MessageBox.Show(
+                this,
+                $"このフォルダには保存できません。{Environment.NewLine}{Environment.NewLine}{chosen}{Environment.NewLine}{Environment.NewLine}{reason}",
+                "保存先を変更できません",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        _controller.Settings.SessionRoot = chosen;
+        _controller.Settings.Save();
+        UpdateState();
+
+        Log.Info($"保存先を変更しました: {chosen}");
+
+        // 録音中の書き込み先を途中で変えると音が欠けるため、次の録音から適用する。
+        var note = _controller.CurrentSession is null
+            ? string.Empty
+            : $"{Environment.NewLine}{Environment.NewLine}録音中のため、いまの録音は元の場所に保存されます。新しい保存先は次の録音から使われます。";
+
+        System.Windows.MessageBox.Show(
+            this,
+            $"保存先を変更しました。{Environment.NewLine}{Environment.NewLine}{chosen}{Environment.NewLine}{Environment.NewLine}これまでの録音は元の場所に残ります。{note}",
+            "保存先を変更しました",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
+    /// <summary>
+    /// 選ばれたフォルダに実際に書き込めるかを確かめる。
+    ///
+    /// 存在の確認だけでは足りない。権限が無い場所や、読み取り専用のドライブでも
+    /// フォルダ自体は見えるため、書いてみないと分からない。
+    /// </summary>
+    private static bool TryVerifyWritable(string directory, out string reason)
+    {
+        var probePath = Path.Combine(directory, $".livedictation-write-test-{Guid.NewGuid():N}");
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(probePath, string.Empty);
+            File.Delete(probePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            reason = ex.Message;
+            return false;
+        }
+
+        reason = string.Empty;
+        return true;
     }
 }
