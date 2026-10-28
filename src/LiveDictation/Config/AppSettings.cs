@@ -63,6 +63,16 @@ public sealed class AppSettings
     /// <summary>1 発話の上限（秒）。既定の 5 秒では会議の発話が途中で切れる。</summary>
     public double VadMaxSpeechSeconds { get; set; } = 20.0;
 
+    /// <summary>
+    /// これより静かな区間は文字起こしにかけない（dBFS、0 が最大音量）。
+    ///
+    /// 鳴っていない区間にモデルが文章を作ってしまうため、入力の時点で落とす。
+    /// 実会議で測ったところ、本当の発話は最小でも -46.6 dBFS、
+    /// 文章が捏造された区間はすべて -56 dBFS 以下で、間が 10 dB 空いていた。
+    /// 下げると捏造が通り、上げると小声の相づちが消える。
+    /// </summary>
+    public double SilenceGateDbfs { get; set; } = -55.0;
+
     [JsonIgnore]
     public static string AppDataRoot { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LiveDictation");

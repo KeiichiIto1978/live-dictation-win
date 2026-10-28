@@ -17,9 +17,20 @@ public enum OfflineModelKind
 
     /// <summary>Moonshine。encoder と decoder で構成される。</summary>
     Moonshine,
+
+    /// <summary>
+    /// FunASR Nano。音声エンコーダの出力を小型 LLM に渡して書き起こす。
+    /// tokens.txt を持たず、トークナイザーをフォルダごと渡す点がほかと違う。
+    /// </summary>
+    FunAsrNano,
 }
 
-/// <summary>仕上げパスで使うオフラインモデル一式。</summary>
+/// <summary>
+/// 仕上げパスで使うオフラインモデル一式。
+///
+/// FunASR Nano は 3 つのモデル本体を使うため、既存の器を次のように使い回している。
+/// Encoder = encoder_adaptor / Decoder = llm / Model = embedding。
+/// </summary>
 public sealed record OfflineModelPaths(
     string Directory,
     OfflineModelKind Kind,
@@ -27,7 +38,8 @@ public sealed record OfflineModelPaths(
     string Model = "",
     string Encoder = "",
     string Decoder = "",
-    string Joiner = "")
+    string Joiner = "",
+    string Tokenizer = "")
 {
     public string Name => Path.GetFileName(Directory);
 }
@@ -50,15 +62,22 @@ public static class OfflineModelLocator
             throw new DirectoryNotFoundException($"モデルフォルダが見つかりません: {directory}");
         }
 
+        // FunASR Nano だけは tokens.txt を持たない。
+        // 先に見分けておかないと、この直後の確認で弾いてしまう。
+        var funAsrNano = DetectFunAsrNano(directory);
+        if (funAsrNano is not null)
+        {
+            Log.Info($"モデルを認識しました: {funAsrNano.Name} ({funAsrNano.Kind})");
+            return funAsrNano;
+        }
+
         var tokens = Path.Combine(directory, "tokens.txt");
         if (!File.Exists(tokens))
         {
             throw new FileNotFoundException($"tokens.txt が見つかりません: {directory}", tokens);
         }
 
-        var files = Directory.GetFiles(directory)
-            .Where(path => ModelExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
-            .ToArray();
+        var files = ModelFiles(directory);
 
         if (files.Length == 0)
         {
@@ -104,6 +123,41 @@ public static class OfflineModelLocator
         return new OfflineModelPaths(directory, kind, tokens, Model: model);
     }
 
+    /// <summary>
+    /// FunASR Nano かどうかを、3 つのモデル本体とトークナイザーのフォルダで見分ける。
+    /// 条件を満たさないときは null を返し、ほかの種別の判定に任せる。
+    /// </summary>
+    private static OfflineModelPaths? DetectFunAsrNano(string directory)
+    {
+        var files = ModelFiles(directory);
+        var encoderAdaptor = Pick(files, "encoder_adaptor");
+        var llm = Pick(files, "llm");
+        var embedding = Pick(files, "embedding");
+
+        if (encoderAdaptor is null || llm is null || embedding is null)
+        {
+            return null;
+        }
+
+        // トークナイザーは vocab.json を持つサブフォルダ。配布物では Qwen3-0.6B という名前。
+        var tokenizer = Directory.GetDirectories(directory)
+            .FirstOrDefault(found => File.Exists(Path.Combine(found, "vocab.json")));
+
+        if (tokenizer is null)
+        {
+            return null;
+        }
+
+        return new OfflineModelPaths(
+            directory, OfflineModelKind.FunAsrNano, Tokens: "",
+            Model: embedding, Encoder: encoderAdaptor, Decoder: llm, Tokenizer: tokenizer);
+    }
+
+    private static string[] ModelFiles(string directory) =>
+        Directory.GetFiles(directory)
+            .Where(path => ModelExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+            .ToArray();
+
     /// <summary>量子化済み (int8) があればそちらを優先する。</summary>
     private static bool IsQuantized(string path) =>
         path.Contains(".int8.", StringComparison.OrdinalIgnoreCase);
@@ -132,13 +186,7 @@ public static class OfflineModelLocator
 
         foreach (var candidate in candidates)
         {
-            if (!File.Exists(Path.Combine(candidate, "tokens.txt")))
-            {
-                continue;
-            }
-
-            if (Directory.GetFiles(candidate)
-                .Any(path => ModelExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)))
+            if (LooksLikeModel(candidate))
             {
                 return candidate;
             }
@@ -146,4 +194,12 @@ public static class OfflineModelLocator
 
         return null;
     }
+
+    /// <summary>
+    /// そのフォルダが仕上げパスで使えるモデルかどうか。
+    /// FunASR Nano は tokens.txt を持たないため、別に見る必要がある。
+    /// </summary>
+    private static bool LooksLikeModel(string directory) =>
+        DetectFunAsrNano(directory) is not null
+        || (File.Exists(Path.Combine(directory, "tokens.txt")) && ModelFiles(directory).Length > 0);
 }

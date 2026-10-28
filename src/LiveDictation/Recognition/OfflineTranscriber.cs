@@ -1,6 +1,7 @@
 using System.IO;
 using LiveDictation.Audio;
 using LiveDictation.Config;
+using LiveDictation.Diagnostics;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using SherpaOnnx;
@@ -68,6 +69,29 @@ public sealed class OfflineTranscriber : IDisposable
                     Encoder = model.Encoder,
                     MergedDecoder = model.Decoder,
                 };
+                modelConfig.ModelType = "";
+                break;
+
+            case OfflineModelKind.FunAsrNano:
+                modelConfig.FunAsrNano = new OfflineFunAsrNanoModelConfig
+                {
+                    EncoderAdaptor = model.Encoder,
+                    LLM = model.Decoder,
+                    Embedding = model.Model,
+                    Tokenizer = model.Tokenizer,
+                    Language = "ja",
+                    // 数字や記号を読みやすい表記に直す。議事録として扱うため有効にする。
+                    Itn = 1,
+                    // 生成の条件が変わると出力も変わる。比較評価と同じ値を明示して固定する。
+                    SystemPrompt = "You are a helpful assistant.",
+                    UserPrompt = "语音转写:",
+                    MaxNewTokens = 512,
+                    Temperature = 1e-6F,
+                    TopP = 0.8F,
+                    Seed = 42,
+                };
+                // トークナイザーをフォルダで渡すため、tokens.txt は使わない。
+                modelConfig.Tokens = "";
                 modelConfig.ModelType = "";
                 break;
 
@@ -188,17 +212,55 @@ public sealed class OfflineTranscriber : IDisposable
                 continue;
             }
 
+            var start = TimeSpan.FromSeconds(segment.Start / (double)SourceCapture.TargetSampleRate);
+            var end = start + TimeSpan.FromSeconds(segment.Samples.Length / (double)SourceCapture.TargetSampleRate);
+
+            // 鳴っていない区間に、モデルがもっともらしい文章を作ってしまうことがある。
+            // VAD は確信度で判断するので音量は見ておらず、ここで落とす。
+            var level = PeakDbfs(segment.Samples);
+            if (level < _settings.SilenceGateDbfs)
+            {
+                // 発言が 1 件消える操作なので、あとから理由を追えるよう記録に残す。
+                Log.Info($"無音として除外しました: {start:hh\\:mm\\:ss} ({level:0.0} dBFS)");
+                continue;
+            }
+
             var text = Recognize(segment.Samples);
             if (string.IsNullOrWhiteSpace(text))
             {
                 continue;
             }
 
-            var start = TimeSpan.FromSeconds(segment.Start / (double)SourceCapture.TargetSampleRate);
-            var end = start + TimeSpan.FromSeconds(segment.Samples.Length / (double)SourceCapture.TargetSampleRate);
-
             results.Add(new TranscriptSegment(source, start, end, text));
         }
+    }
+
+    /// <summary>
+    /// 区間の中で一番大きい 0.1 秒の音量を dBFS で返す。
+    ///
+    /// 区間全体の平均で見ると、短い相づちが前後の無音に薄められて無音扱いになる。
+    /// 一番大きいところだけ見れば「鳴っていたかどうか」を判断できる。
+    /// </summary>
+    private static double PeakDbfs(float[] samples)
+    {
+        const int blockSize = SourceCapture.TargetSampleRate / 10;
+        var peak = 0.0;
+
+        for (var offset = 0; offset < samples.Length; offset += blockSize)
+        {
+            var count = Math.Min(blockSize, samples.Length - offset);
+            var sum = 0.0;
+
+            for (var index = 0; index < count; index++)
+            {
+                var value = (double)samples[offset + index];
+                sum += value * value;
+            }
+
+            peak = Math.Max(peak, Math.Sqrt(sum / count));
+        }
+
+        return peak > 0 ? 20 * Math.Log10(peak) : double.NegativeInfinity;
     }
 
     private string Recognize(float[] samples)
