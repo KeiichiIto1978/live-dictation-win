@@ -110,7 +110,13 @@ public sealed class MeetingDetector : IDisposable
         }
     }
 
-    /// <summary>会議の始まりとみなす条件。誤検知を避けるため厳しくする。</summary>
+    /// <summary>
+    /// 会議の始まりとみなす条件。誤検知を避けるため厳しくする。
+    ///
+    /// マイクを掴んでいるだけでは会議と断定できない。会議以外でもマイクは使われる
+    /// （ブラウザの音声入力や録音サイト、各アプリのマイクテスト画面）。
+    /// 同じアプリが音も出していることまで確かめる。
+    /// </summary>
     private static MeetingApp? DetectStart()
     {
         var microphoneUsers = MicrophoneUsageReader.GetExecutablesInUse();
@@ -119,6 +125,7 @@ public sealed class MeetingDetector : IDisposable
             return null;
         }
 
+        // 会議アプリが 1 つも無ければ再生側を読む必要がないため、必要になってから取る。
         HashSet<string>? playing = null;
 
         foreach (var executable in microphoneUsers)
@@ -129,12 +136,6 @@ public sealed class MeetingDetector : IDisposable
                 continue;
             }
 
-            if (!app.RequiresPlayback)
-            {
-                return app;
-            }
-
-            // ブラウザはマイク使用だけでは会議と断定できない（録音サイトや音声入力でも鳴る）。
             playing ??= AudioSessionReader.GetPlaying();
             if (playing.Contains(executable))
             {

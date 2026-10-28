@@ -114,11 +114,6 @@ public static class DetectionWatch
                 continue;
             }
 
-            if (!app.RequiresPlayback)
-            {
-                return $"会議 ({app.DisplayName})";
-            }
-
             if (playing.Contains(executable))
             {
                 return $"会議 ({app.DisplayName} / 再生も確認)";
