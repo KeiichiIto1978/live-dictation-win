@@ -21,6 +21,13 @@ public static class FinalPass
 
     public static bool IsAvailable(AppSettings settings) => TryResolve(settings, out _, out _, out _);
 
+    /// <summary>
+    /// 実際に使われるモデルを返す。見つからないときは null。
+    /// 設定と探索の結果どれが選ばれたのかは外から見えないため、自己診断で示せるようにする。
+    /// </summary>
+    public static OfflineModelPaths? FindModel(AppSettings settings) =>
+        TryResolve(settings, out var model, out _, out _) ? model : null;
+
     private static bool TryResolve(
         AppSettings settings,
         out OfflineModelPaths? model,

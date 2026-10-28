@@ -79,7 +79,8 @@ public sealed class AppSettings
 
     /// <summary>
     /// モデルを探す場所。前から順に見る。
-    /// 実行ファイルの近くも見るのは、リポジトリの models/ に置いたまま使えるようにするため。
+    /// 実行ファイルの親をたどるのは、リポジトリの models/ に置いたまま使えるようにするため。
+    /// 構成や発行方法で実行ファイルの深さが変わるので、段数を決め打ちせずドライブ直下まで見る。
     /// </summary>
     [JsonIgnore]
     public IEnumerable<string> ModelSearchRoots
@@ -88,8 +89,9 @@ public sealed class AppSettings
         {
             yield return DefaultOfflineModelRoot;
 
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            for (var depth = 0; depth < 6 && directory is not null; depth++, directory = directory.Parent)
+            for (var directory = new DirectoryInfo(AppContext.BaseDirectory);
+                 directory is not null;
+                 directory = directory.Parent)
             {
                 yield return Path.Combine(directory.FullName, "models");
             }

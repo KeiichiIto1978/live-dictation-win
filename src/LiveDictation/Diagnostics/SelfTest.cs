@@ -66,14 +66,17 @@ public static class SelfTest
             return true;
         }
 
-        if (!FinalPass.IsAvailable(settings))
+        var model = FinalPass.FindModel(settings);
+        if (model is null)
         {
             report.AppendLine("[NG] 文字起こし用のモデルが見つかりません");
             report.AppendLine("     scripts フォルダの download-offline-model.ps1 を実行してください");
             return false;
         }
 
-        report.AppendLine($"[OK] 文字起こしモデル: {Path.Combine(settings.DefaultOfflineModelRoot)}");
+        // どのモデルが選ばれたかは精度に直結するため、置き場所まで出す。
+        report.AppendLine($"[OK] 文字起こしモデル: {model.Name} ({model.Kind})");
+        report.AppendLine($"     {model.Directory}");
         return true;
     }
 }

@@ -58,6 +58,9 @@ powershell -ExecutionPolicy RemoteSigned -File scripts\download-offline-model.ps
 
 `%LOCALAPPDATA%\LiveDictation\models-offline\` に展開されます。アプリはここを自動で探すため、追加の設定は不要です。
 
+リポジトリの `models\` に置いても構いません。実行ファイルから親をたどって探すため、クローンしたフォルダのまま使えます。
+両方にある場合は `models-offline\` が優先されます。1 つのフォルダに複数のモデルを置いた場合は、最後に追加したものが使われます。
+
 ### 2. ビルドする
 
 Visual Studio 2022 で `LiveDictation.sln` を開いて実行するか、次を実行します。
@@ -168,8 +171,8 @@ dotnet run --project src\LiveDictation -- --selftest
 | `KeepMeetingAliveWhilePlaying` | `true` | 再生中は会議継続とみなす（ミュート対策） |
 | `MaxRecordingHours` | `3.0` | 手動録音の上限 |
 | `EnableFinalPass` | `true` | 停止後の文字起こし |
-| `OfflineModelDirectory` | `""` | 空なら models-offline 配下を自動探索 |
-| `VadModelPath` | `""` | 空なら models-offline\silero_vad.onnx |
+| `OfflineModelDirectory` | `""` | 空なら models-offline\ とリポジトリの models\ を自動探索 |
+| `VadModelPath` | `""` | 空なら探索先の silero_vad.onnx |
 | `OfflineNumThreads` | `8` | 文字起こしのスレッド数 |
 | `VadThreshold` | `0.5` | 発話とみなす確信度 |
 | `VadMinSilenceSeconds` | `0.5` | 発話の切れ目とみなす無音（秒） |
